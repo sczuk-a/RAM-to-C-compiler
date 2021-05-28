@@ -33,7 +33,6 @@ data Instruction
     | Goto String              -- Goto -> String
     | Input Cell               -- Input: Cell
     | Output Cell              -- Output: Cell
-    | Empty ()
   deriving (Eq, Show)
 
 data Program = Main [Instruction]
@@ -141,10 +140,11 @@ run p s = snd $ runParser go s
          eof            -- naparsuje konec souboru/vstupu
          return result  -- vrátí výsledek parseru 'p'
 
-
 char :: Char -> Parser Char
 char c = satisfy [c] (== c)
 
+isNot :: Char -> Parser Char
+isNot c = satisfy ("anything but" ++ [c]) (/= c)
 
 space :: Parser Char
 space = satisfy "space" isSpace 
@@ -195,8 +195,8 @@ between left right p = do
 
 
 parens, brackets, braces :: Parser a -> Parser a
-parens   p = try (between (symbol "(") (symbol ")") p)
-brackets p = try (between (symbol "[") (symbol "]") p)
+parens   p = try (between (char '(') (char ')') p)
+brackets p = try (between (char '[') (char ']') p)
 braces   p = try (between (symbol "{") (symbol "}") p)
 
 
@@ -321,17 +321,15 @@ parseIf = do
 
 parsePoint :: Parser Instruction 
 parsePoint = do 
-    str    <- (many parseChar)
+    str    <- many (isNot ':')
     _      <- string ":" 
     instr  <- parseInstruction
     return (Point str instr)
-    where
-        parseChar = satisfy "not a quote" (/= ':')
 
 parseGoto :: Parser Instruction 
 parseGoto = do 
-    _   <- string "Goto"
-    str <- many parseAny
+    _   <- string "Goto->"
+    str <- many (isNot '\n')
     return (Goto str)
 
 parseInput :: Parser Instruction 
@@ -352,11 +350,10 @@ parseInstruction :: Parser Instruction
 parseInstruction = choice "Instruction"
     [ try parseAssign
     , try parseIf
-    , try parsePoint
     , try parseGoto
     , try parseInput
     , try parseOutput
-    , Empty <$> try eof
+    , try parsePoint
     ]
 
 
@@ -368,17 +365,15 @@ parseInstruction = choice "Instruction"
 parseProgram :: Parser Program 
 parseProgram = Main <$> (sepBy parseInstruction (char '\n'))
 
+parseTest = run (sepBy (between (symbol "a") (symbol "a") (char 'b')) (char '\n'))
+
 
 ----------------------------------------------------------------------------------------------------------
 -----------------------------------  String trim
 ----------------------------------------------------------------------------------------------------------
 
 removeWhiteSpaces :: String -> String 
-removeWhiteSpaces = foldr go ""
-    where
-        go c s
-            | c == ' ' = s
-            | otherwise = (c:s)
+removeWhiteSpaces = filter (/= ' ')
 
 
 removeExtraLines :: String -> String
@@ -402,9 +397,9 @@ prepareForParsing = removeExtraLines . removeWhiteSpaces
 
 
 includes = "#include <stdio.h>\n#include <stdlib.h>\n\n"
-memorymanage = "int get(int idx, int* max, int**arr)\n{if(*max>idx){*arr=(int*)realloc(*arr,sizeof(int)*2*idx);*max=2*idx;}return idx;}\n\n"
-start = "int main(){\n   int* kov_arr=(int*)malloc(sizeof(int)*26);\n   int max=32;\n   int* arr=(int*)malloc(32*sizeof(int));\n"
-end = "   free(kov_arr);\n   free(arr);\n}\n"
+memorymanage = "int get(int idx, int** arr, int* max)\n{if(*max<idx){*arr=(int*)realloc(*arr,sizeof(int)*2*idx);*max=2*idx;}return idx;}\n\n"
+start = "int main(){\n    int* kov_arr=(int*)malloc(sizeof(int)*26);\n    int max=32;\n    int* arr=(int*)malloc(32*sizeof(int));\n"
+end = "    free(kov_arr);\n    free(arr);\n}\n"
 
 
 
@@ -414,8 +409,9 @@ fromASCII c = (ord c) - 65
 
 compileCell :: Cell -> String
 compileCell (Konv    c) = "kov_arr[" ++ (show (fromASCII c)) ++ "]"
-compileCell (Dir     n) = "arr[get(" ++ (show n) ++ ", &arr, &max)]"
-compileCell (NonDir  c) = "arr[get(" ++ (compileCell c) ++ ", &arr, &max)]"
+-- compileCell (Dir     n) = "arr[get(" ++ (show n) ++ ", &arr, &max)]"
+compileCell (Dir     n) = "*((int*) (get(" ++ (show n) ++ ", &arr, &max) + arr))"
+compileCell (NonDir  c) = "*((int*) (get(" ++ (compileCell c) ++ ", &arr, &max) + arr))"
 
 
 compileExpr :: Expr -> String
@@ -433,17 +429,16 @@ compileInstr :: Instruction -> String
 compileInstr (Assign c e) = (compileCell c) ++ "=" ++ (compileExpr e) ++ ";\n"
 compileInstr (If     c i) = "if(" ++ (compileCond c) ++ ")" ++ (compileInstr i)
 compileInstr (Comment  s) = "// " ++ s ++ "\n"
-compileInstr (Point  s i) = s ++ (compileInstr i)
-compileInstr (Goto     s) = "goto" ++ s ++ ";\n"
+compileInstr (Point  s i) = s ++ ":  " ++ (compileInstr i)
+compileInstr (Goto     s) = "goto " ++ s ++ ";\n"
 compileInstr (Input    c) = "scanf(\"%i\",&"  ++ (compileCell c) ++ ");\n"
 compileInstr (Output   c) = "printf(\"%i \"," ++ (compileCell c) ++ ");\n"
-compileInstr (Empty    _) = ""
 
 
 compileProgram :: Either ParseError Program -> Either ParseError String
 compileProgram (Right (Main x)) = Right (beg ++ (foldr f "" x) ++ end)
   where
-    f = ((++) . (("   " ++) . compileInstr))
+    f = ((++) . (("    " ++) . compileInstr))
     beg = includes ++ memorymanage ++ start
 compileProgram (Left err) = (Left err)
 
@@ -451,8 +446,11 @@ printPrg :: Either ParseError String -> String
 printPrg (Left  err) = show err
 printPrg (Right prg) = prg
 
+parse :: String -> Either ParseError Program
+parse = (run parseProgram) . prepareForParsing
+
 compile :: String -> Either ParseError String
-compile = compileProgram . (run parseProgram) . prepareForParsing 
+compile = compileProgram . parse
 
 test s = printPrg (compile s)
 
