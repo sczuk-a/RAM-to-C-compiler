@@ -3,7 +3,8 @@
 Překladač upraveného RAM (random acces machine) do jazyku C.
 
 
-Každá řádka obsahuje jeden příkaz. Možné příkazy jsou: 
+
+## Přiřazení
 
 ```
 Cell <- Expression
@@ -13,14 +14,18 @@ Přiřadí do buňky `Cell` hodnotu výrazu `Expression`
 Buňky můžou jsou adresovány nezápornýmy čísly. A přistupuje se do nich `[Number]`. Dále lze použít pomocné buňky
 indexované velkýmy písmeny `A-Z`. Možná je i nepřímá adresace a to do nekonečné hloubky, např. `[[[1]]]`, `[[1]]`.
 
-Povolené výrazy se skládají z operátorů `+ - * /`(dělení je pouze celočíselné), závorek a buněk. Příklady výrazů:
+Povolené výrazy se skládají z operátorů `+ - * /`(dělení je pouze celočíselné), závorek a buněk.
+
+Příklady přiřazení:
 ```
-(1+A) / ([[1]] - 2)
-C + 42* [1]
+A <- (1+A) / ([[1]] - 2)
+[1] <-C + 42* [1]
+[[0]] <- [[0]] + 1
 ```
 
 -------------------------------------------------------------------------------------
 
+## Vstup a výstup
 
 ```
 Input: Cell
@@ -28,13 +33,16 @@ Input: Cell
 Načte do buňky `Cell` číslo ze `stdin`.
 
 ```
-Output: Cell
+Output: Expr
 ```
-Vytiskne hodnotu buňky na `stdout`.
+Vytiskne hodnotu výrazu `Expr` na `stdout`.
 
 
 
 -------------------------------------------------------------------------------------
+
+
+## Podmínky
 
 ```
 If Cond do Instruction
@@ -49,6 +57,7 @@ If (A == B AND A == C) OR A == [42] do A <- 1
 
 -------------------------------------------------------------------------------------
 
+## Skoky
 
 ```
 Point: Instrukce
