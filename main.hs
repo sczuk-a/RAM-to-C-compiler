@@ -57,22 +57,6 @@ newtype Parser a = Parser {
 }
 
 
-parseAny :: Parser Char
-parseAny = Parser go
-  where
-    go :: String -> (String, Either ParseError Char)
-    go input = case input of 
-                 []     -> ("", Left $ ParseError "any character" "end of file")
-                 (x:xs) -> (xs, Right x)
-
-
-eof :: Parser ()
-eof = Parser go
- where
-    go :: String -> (String, Either ParseError ())
-    go input = case input of
-                 []    -> (""   , Right ())
-                 (c:_) -> (input, Left $ ParseError "end of file" [c])
 
 
 instance Functor Parser where
@@ -140,19 +124,39 @@ run p s = snd $ runParser go s
          eof            -- naparsuje konec souboru/vstupu
          return result  -- vrátí výsledek parseru 'p'
 
+----------------------------------------------------------------------------------------------------------
+-----------------------------------------  Simple parsers
+----------------------------------------------------------------------------------------------------------
+
+parseAny :: Parser Char
+parseAny = Parser go
+  where
+    go :: String -> (String, Either ParseError Char)
+    go input = case input of 
+                 []     -> ("", Left $ ParseError "any character" "end of file")
+                 (x:xs) -> (xs, Right x)
+
+
+eof :: Parser ()
+eof = Parser go
+ where
+    go :: String -> (String, Either ParseError ())
+    go input = case input of
+                 []    -> (""   , Right ())
+                 (c:_) -> (input, Left $ ParseError "end of file" [c])
+
+
+
 char :: Char -> Parser Char
 char c = satisfy [c] (== c)
+
 
 isNot :: Char -> Parser Char
 isNot c = satisfy ("anything but" ++ [c]) (/= c)
 
-space :: Parser Char
-space = satisfy "space" isSpace 
-
 
 digit :: Parser Char
 digit = satisfy "digit" isDigit
-
 
 
 many :: Parser a -> Parser [a]
@@ -175,17 +179,6 @@ number = do
   return $ read numericString   -- použije 'read :: String -> Int' pro konverzi na číslo
 
 
-spaces :: Parser String
-spaces = many space
-
-
-symbol :: String -> Parser String
-symbol s = do
-    result <- string s
-    _ <- spaces
-    return result
-
-
 between :: Parser a -> Parser c -> Parser b -> Parser b
 between left right p = do
     _      <- left
@@ -194,10 +187,9 @@ between left right p = do
     return result
 
 
-parens, brackets, braces :: Parser a -> Parser a
+parens, brackets :: Parser a -> Parser a
 parens   p = try (between (char '(') (char ')') p)
 brackets p = try (between (char '[') (char ']') p)
-braces   p = try (between (symbol "{") (symbol "}") p)
 
 
 sepBy, sepBy1 :: Parser a -> Parser sep -> Parser [a]
@@ -206,11 +198,6 @@ sepBy1 p s = do
   first <- p
   rest  <- many (s >>= \_ -> p)   -- stručněji jako 'many (s >> p)'
   return (first : rest)
-
-
-
-parseListOf :: Parser a -> Parser [a]
-parseListOf p = brackets $ p `sepBy` (symbol ",") 
 
 
 choice :: String -> [Parser a] -> Parser a
@@ -365,7 +352,7 @@ parseInstruction = choice "Instruction"
 parseProgram :: Parser Program 
 parseProgram = Main <$> (sepBy parseInstruction (char '\n'))
 
-parseTest = run (sepBy (between (symbol "a") (symbol "a") (char 'b')) (char '\n'))
+-- parseTest = run (sepBy (between (symbol "a") (symbol "a") (char 'b')) (char '\n'))
 
 
 ----------------------------------------------------------------------------------------------------------
@@ -409,7 +396,6 @@ fromASCII c = (ord c) - 65
 
 compileCell :: Cell -> String
 compileCell (Konv    c) = "kov_arr[" ++ (show (fromASCII c)) ++ "]"
--- compileCell (Dir     n) = "arr[get(" ++ (show n) ++ ", &arr, &max)]"
 compileCell (Dir     n) = "*((int*) (get(" ++ (show n) ++ ", &arr, &max) + arr))"
 compileCell (NonDir  c) = "*((int*) (get(" ++ (compileCell c) ++ ", &arr, &max) + arr))"
 
@@ -417,12 +403,14 @@ compileCell (NonDir  c) = "*((int*) (get(" ++ (compileCell c) ++ ", &arr, &max) 
 compileExpr :: Expr -> String
 compileExpr (Lit int)   = show int
 compileExpr (Var cell)  = compileCell cell
-compileExpr (BinOp op e1 e2) = (compileExpr e1) ++ op ++ (compileExpr e2)
+compileExpr (BinOp op e1 e2) = "(" ++ (compileExpr e1) ++ op ++ (compileExpr e2) ++ ")"
 
 
 compileCond :: Cond -> String
 compileCond (CmpOp     op e1 e2) = (compileExpr e1) ++ op ++ (compileExpr e2)
-compileCond (LogicalOp op c1 c2) = (compileCond c1) ++ op ++ (compileCond c2)
+compileCond (LogicalOp op c1 c2)
+    | op =="AND" = "(" ++ (compileCond c1) ++ "&&" ++ (compileCond c2) ++ ")"
+    | otherwise  = "(" ++ (compileCond c1) ++ "||" ++ (compileCond c2) ++ ")"
 
 
 compileInstr :: Instruction -> String

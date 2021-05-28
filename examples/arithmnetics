@@ -1,0 +1,10 @@
+A <- (2+3)*(3+1+1*2)/1/1/1
+Output: A
+B <- ((2+3)+2)*2+(4/2)
+Output: B
+C <- 1
+D <- 1
+E <- 0
+If C == D OR C == D AND C == E do Output: C
+If (C == D OR C == D) AND C == E do Output: E
+If (C == D OR C == D) AND ((C == E OR C == D) AND C == D) do Output: C
