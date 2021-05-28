@@ -1,6 +1,8 @@
 {-# LANGUAGE InstanceSigs #-}
 
 import Data.Char
+import System.IO
+
 
 ----------------------------------------------------------------------------------------------------------
 ----------------------------------  Grammar data
@@ -31,6 +33,7 @@ data Instruction
     | Goto String              -- Goto -> String
     | Input Cell               -- Input: Cell
     | Output Cell              -- Output: Cell
+    | Empty ()
   deriving (Eq, Show)
 
 data Program = Main [Instruction]
@@ -343,7 +346,7 @@ parseOutput = do
     _    <- string "Output"
     _    <- string ":"
     cell <- parseCell
-    return (Input cell)
+    return (Output cell)
 
 parseInstruction :: Parser Instruction 
 parseInstruction = choice "Instruction"
@@ -353,6 +356,7 @@ parseInstruction = choice "Instruction"
     , try parseGoto
     , try parseInput
     , try parseOutput
+    , Empty <$> try eof
     ]
 
 
@@ -362,15 +366,43 @@ parseInstruction = choice "Instruction"
 
 
 parseProgram :: Parser Program 
-parseProgram = Main <$> (sepBy parseInstruction (symbol ","))
+parseProgram = Main <$> (sepBy parseInstruction (char '\n'))
+
+
+----------------------------------------------------------------------------------------------------------
+-----------------------------------  String trim
+----------------------------------------------------------------------------------------------------------
+
+removeWhiteSpaces :: String -> String 
+removeWhiteSpaces = foldr go ""
+    where
+        go c s
+            | c == ' ' = s
+            | otherwise = (c:s)
+
+
+removeExtraLines :: String -> String
+removeExtraLines s = (\(a, b) -> b) (foldr go (True, "") s)
+    where 
+        go c (False, s)
+            | c == '\n' = (True,  c:s)
+            | otherwise = (False, c:s)
+        go c (True, s)
+            | c == '\n' = (True,  s  )
+            | otherwise = (False, c:s)
+
+prepareForParsing :: String -> String 
+prepareForParsing = removeExtraLines . removeWhiteSpaces
 
 
 
+----------------------------------------------------------------------------------------------------------
+----------------------------------  Compiler
+----------------------------------------------------------------------------------------------------------
 
 
------------------------------
 includes = "#include <stdio.h>\n#include <stdlib.h>\n\n"
-memorymanage = "int get(int idx, int* max, int** arr)\n{if(*max>idx){*arr=(int*)realloc(*arr,sizeof(int)*2*idx;*max=2*idx}return idx;}\n\n"
+memorymanage = "int get(int idx, int* max, int**arr)\n{if(*max>idx){*arr=(int*)realloc(*arr,sizeof(int)*2*idx);*max=2*idx;}return idx;}\n\n"
 start = "int main(){\n   int* kov_arr=(int*)malloc(sizeof(int)*26);\n   int max=32;\n   int* arr=(int*)malloc(32*sizeof(int));\n"
 end = "   free(kov_arr);\n   free(arr);\n}\n"
 
@@ -380,48 +412,79 @@ fromASCII :: Char -> Int
 fromASCII c = (ord c) - 65
 
 
-translateCell :: Cell -> String
-translateCell (Konv    c) = "kov_arr[" ++ (show (fromASCII c)) ++ "]"
-translateCell (Dir     n) = "arr[get(" ++ (show n) ++ ", &arr, &max)]"
-translateCell (NonDir  c) = "arr[get(" ++ (translateCell c) ++ ", &arr, &max)]"
+compileCell :: Cell -> String
+compileCell (Konv    c) = "kov_arr[" ++ (show (fromASCII c)) ++ "]"
+compileCell (Dir     n) = "arr[get(" ++ (show n) ++ ", &arr, &max)]"
+compileCell (NonDir  c) = "arr[get(" ++ (compileCell c) ++ ", &arr, &max)]"
 
 
-translateExpr :: Expr -> String
-translateExpr (Lit int)   = show int
-translateExpr (Var cell)  = translateCell cell
-translateExpr (BinOp op e1 e2) = (translateExpr e1) ++ op ++ (translateExpr e2)
+compileExpr :: Expr -> String
+compileExpr (Lit int)   = show int
+compileExpr (Var cell)  = compileCell cell
+compileExpr (BinOp op e1 e2) = (compileExpr e1) ++ op ++ (compileExpr e2)
 
 
-translateCond :: Cond -> String
-translateCond (CmpOp     op e1 e2) = (translateExpr e1) ++ op ++ (translateExpr e2)
-translateCond (LogicalOp op c1 c2) = (translateCond c1) ++ op ++ (translateCond c2)
+compileCond :: Cond -> String
+compileCond (CmpOp     op e1 e2) = (compileExpr e1) ++ op ++ (compileExpr e2)
+compileCond (LogicalOp op c1 c2) = (compileCond c1) ++ op ++ (compileCond c2)
 
 
-translateInstr :: Instruction -> String
-translateInstr (Assign c e) = (translateCell c) ++ "=" ++ (translateExpr e) ++ ";\n"
-translateInstr (If     c i) = "if(" ++ (translateCond c) ++ ")" ++ (translateInstr i)
-translateInstr (Comment  s) = "// " ++ s ++ "\n"
-translateInstr (Point  s i) =  s ++ (translateInstr i)
-translateInstr (Goto     s) =  "goto" ++ s ++ ";\n"
-translateInstr (Input    c) =  "scanf(\"%i\",&"  ++ (translateCell c) ++ ");\n"
-translateInstr (Output   c) =  "printf(\"%i \",&" ++ (translateCell c) ++ ");\n"
+compileInstr :: Instruction -> String
+compileInstr (Assign c e) = (compileCell c) ++ "=" ++ (compileExpr e) ++ ";\n"
+compileInstr (If     c i) = "if(" ++ (compileCond c) ++ ")" ++ (compileInstr i)
+compileInstr (Comment  s) = "// " ++ s ++ "\n"
+compileInstr (Point  s i) = s ++ (compileInstr i)
+compileInstr (Goto     s) = "goto" ++ s ++ ";\n"
+compileInstr (Input    c) = "scanf(\"%i\",&"  ++ (compileCell c) ++ ");\n"
+compileInstr (Output   c) = "printf(\"%i \"," ++ (compileCell c) ++ ");\n"
+compileInstr (Empty    _) = ""
 
 
-translateProgram :: Either ParseError Program -> Either ParseError String
-translateProgram (Right (Main x)) = Right (beg ++ (foldr f "" x) ++ end)
+compileProgram :: Either ParseError Program -> Either ParseError String
+compileProgram (Right (Main x)) = Right (beg ++ (foldr f "" x) ++ end)
   where
-    f = ((++) . (("   " ++) . translateInstr))
+    f = ((++) . (("   " ++) . compileInstr))
     beg = includes ++ memorymanage ++ start
-translateProgram (Left err) = (Left err)
+compileProgram (Left err) = (Left err)
 
 printPrg :: Either ParseError String -> String 
 printPrg (Left  err) = show err
 printPrg (Right prg) = prg
 
+compile :: String -> Either ParseError String
+compile = compileProgram . (run parseProgram) . prepareForParsing 
 
-translate :: String -> String
-translate = printPrg . translateProgram . (run parseProgram) 
+test s = printPrg (compile s)
 
-test s = putStr (translate s)
+
+----------------------------------------------------------------------------------------------------------
+----------------------------------  Main
+----------------------------------------------------------------------------------------------------------
+
+compileFile :: [String] -> IO()
+compileFile []          = do putStrLn "no input file"
+compileFile [from]      = compileFile' from (from ++ ".c")
+compileFile (from:to:_) = compileFile' from to
+
+
+compileFile' :: String -> String -> IO()
+compileFile' from to = do 
+    content <- readFile from
+    h <- openFile to WriteMode
+    hPutStrLn h ((printPrg . compile) content)
+    hClose h
+
+main :: IO ()
+main = do 
+--    args <- getArgs
+--    compileFile args  
+    compileFile ["test1", "done1.c"]
+        
+
+
+
+
+
+
 
 
