@@ -1,0 +1,31 @@
+#indirect addressing
+
+
+Input: [0]
+Output: [0]
+
+Input: [[0]]
+Output: [[0]]
+
+Input: [[[0]]]
+Output: [[[0]]]
+
+Input: [[[[0]]]]
+Output: [[[[0]]]]
+
+
+
+Input: A
+Output: A
+
+Input: [A]
+Output: [A]
+
+Input: [[A]]
+Output: [[A]]
+
+Input: [[[A]]]
+Output: [[[A]]]
+
+Input: [[[[A]]]]
+Output: [[[[A]]]]
