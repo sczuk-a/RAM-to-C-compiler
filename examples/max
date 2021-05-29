@@ -1,12 +1,18 @@
+# takes n, and n numbers on input and prints the larges one
+
+# handling input
 Input: [0]
 I <- 1
 in: Input: [I]
 I <- I + 1
 If I <= [0] do Goto -> in
 
+# finding maximim
 M <- [1]
 I <- 1
 here: If [I] > M do M <- [I]
 I <- I + 1
 If I <= [0] do Goto -> here
+
+
 Output: M

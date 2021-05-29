@@ -1,4 +1,6 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# OPTIONS_GHC -Wall #-}
+
 
 import Data.Char
 import System.IO
@@ -31,7 +33,6 @@ data Cond
 data Instruction
     = Assign Cell Expr         -- Cell <- Expr
     | If Cond Instruction      -- If Cond do Instruction
-    | Comment String           -- # String
     | Point String Instruction -- String: Instruction
     | Goto String              -- Goto -> String
     | Input Cell               -- Input: Cell
@@ -367,22 +368,38 @@ parseProgram = Main <$> (sepBy parseInstruction (char '\n'))
 -----------------------------------  String trim
 ----------------------------------------------------------------------------------------------------------
 
+
+removeComments :: String -> String 
+removeComments s = (reverse . snd) (foldl go (False, " ") s)
+    where
+        go (False, xs) c
+            | c == '#'  = (True , xs  )
+            | otherwise = (False, c:xs)
+        go (True,  xs) c
+            | c == '\n' = (False, c:xs)
+            | otherwise = (True , xs  )
+
+
 removeWhiteSpaces :: String -> String 
 removeWhiteSpaces = filter (/= ' ')
 
 
 removeExtraLines :: String -> String
-removeExtraLines s = (\(a, b) -> b) (foldr go (True, "") s)
+removeExtraLines s = (go' . snd) (foldr go (True, "") s)
     where 
-        go c (False, s)
-            | c == '\n' = (True,  c:s)
-            | otherwise = (False, c:s)
-        go c (True, s)
-            | c == '\n' = (True,  s  )
-            | otherwise = (False, c:s)
+        go c (False, xs)
+            | c == '\n' = (True,  c:xs)
+            | otherwise = (False, c:xs)
+        go c (True, xs)
+            | c == '\n' = (True,  xs  )
+            | otherwise = (False, c:xs)
+        go' [] = []
+        go' (x:xs)
+            | x == '\n' = xs
+            |otherwise  = x:xs
 
 prepareForParsing :: String -> String 
-prepareForParsing = removeExtraLines . removeWhiteSpaces
+prepareForParsing = removeExtraLines . removeWhiteSpaces . removeComments
 
 
 
@@ -390,10 +407,10 @@ prepareForParsing = removeExtraLines . removeWhiteSpaces
 ----------------------------------  Compiler
 ----------------------------------------------------------------------------------------------------------
 
-
+includes, memorymanage, start, end :: String
 includes = "#include <stdio.h>\n#include <stdlib.h>\n\n"
-memorymanage = "int get(int idx, int** arr, int* max)\n{if(*max<idx){*arr=(int*)realloc(*arr,sizeof(int)*2*idx);*max=2*idx;}return idx;}\n\n"
-start = "int main(){\n    int* kov_arr=(int*)malloc(sizeof(int)*26);\n    int max=32;\n    int* arr=(int*)malloc(32*sizeof(int));\n"
+memorymanage = "int get(int idx, int** arr, int* max)\n{if(*max<=idx){*arr=(int*)realloc(*arr,sizeof(int)*2*idx);*max=2*idx;}return idx;}\n\n"
+start = "int main(){\n    int* kov_arr=(int*)malloc(sizeof(int)*26);\n    int max=32;\n    int* arr=(int*)malloc(max*sizeof(int));\n"
 end = "    free(kov_arr);\n    free(arr);\n}\n"
 
 
@@ -404,8 +421,8 @@ fromASCII c = (ord c) - 65
 
 compileCell :: Cell -> String
 compileCell (Konv    c) = "kov_arr[" ++ (show (fromASCII c)) ++ "]"
-compileCell (Dir     n) = "*((int*) (get(" ++ (show n) ++ ", &arr, &max) + arr))"
-compileCell (NonDir  c) = "*((int*) (get(" ++ (compileCell c) ++ ", &arr, &max) + arr))"
+compileCell (Dir     n) = "*((int*)(get(" ++ (show n) ++ ", &arr, &max) + arr))"
+compileCell (NonDir  c) = "*((int*)(get(" ++ (compileCell c) ++ ", &arr, &max) + arr))"
 
 
 compileExpr :: Expr -> String
@@ -424,7 +441,6 @@ compileCond (LogicalOp op c1 c2)
 compileInstr :: Instruction -> String
 compileInstr (Assign c e) = (compileCell c) ++ "=" ++ (compileExpr e) ++ ";\n"
 compileInstr (If     c i) = "if(" ++ (compileCond c) ++ ")" ++ (compileInstr i)
-compileInstr (Comment  s) = "// " ++ s ++ "\n"
 compileInstr (Point  s i) = s ++ ":  " ++ (compileInstr i)
 compileInstr (Goto     s) = "goto " ++ s ++ ";\n"
 compileInstr (Input    c) = "scanf(\"%i\",&"  ++ (compileCell c) ++ ");\n"
@@ -467,6 +483,7 @@ handleArgs xs
 
 
 compileFile :: [String] -> IO()
+compileFile []          = return ()
 compileFile [from]      = compileFile' from (from ++ ".c")
 compileFile (from:to:_) = compileFile' from to
 
@@ -476,14 +493,12 @@ compileFile' from to = do
         err1 <- doesFileExist from
         unless err1 $ do
             die ("File " <> from <> " does not exist.")
-        putStrLn "here"
         content <- readFile from
-        compileFile'' from to (compile content)
+        compileFile'' to (compile content)
 
-compileFile'' :: String -> String -> (Either ParseError String) -> IO()
-compileFile'' from to (Left err) = do
-    die ( show err )
-compileFile'' from to (Right str) = do 
+compileFile'' :: String -> (Either ParseError String) -> IO()
+compileFile'' _  (Left err)  = die ( show err )
+compileFile'' to (Right str) = do 
     h <- openFile to WriteMode
     hPutStrLn h str
     hClose h

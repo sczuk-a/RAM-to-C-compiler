@@ -82,4 +82,10 @@ here: Output: 1
 Goto -> here
 ```
 Kód rozeznámá velká/malá písmena, ale nekouká na mezery. 
+Překladač ignoruje cokoliv za `#` až do konce řádky.
+
+
+
+
+
 

@@ -1,10 +1,22 @@
-A <- (2+3)*(3+1+1*2)/1/1/1
-Output: A
-B <- ((2+3)+2)*2+(4/2)
-Output: B
+#arithmetics expample
+
+A <- (2+3)*(3+1+1*2)/1/1/1 
+Output: A #expected: 30
+
+B <- ((2+3)+2)*2+(4/2) 
+Output: B #expeted: 16
+
 C <- 1
 D <- 1
 E <- 0
-If C == D OR C == D AND C == E do Output: C
-If (C == D OR C == D) AND C == E do Output: E
-If (C == D OR C == D) AND ((C == E OR C == D) AND C == D) do Output: C
+
+#   true  OR true   AND false
+If C == D OR C == D AND C == E do Output: 1
+
+
+#  (true   OR true  ) AND false
+If (C == D OR C == D) AND C == E do Output: 0
+
+
+#  (true   OR true  ) AND ((false  OR true  ) AND true  )
+If (C == D OR C == D) AND ((C == E OR C == D) AND C == D) do Output: 1
