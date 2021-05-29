@@ -14,8 +14,8 @@ Také je možné pustit s `--help` pro zobrazení informací.
 # Model
 
 Překladač upraveného modelu RAM (https://en.wikipedia.org/wiki/Random-access_machine) do jazyku C.
-Program se skládá z posloupnosti instrukcí, které vykonává od začátku do konce. Výtočet končí, pokud program narazí na
-instrukci `halt` nebo dojde na konec. Program pracuje s celými čísly a nekonečnou páskou buněk, indexovanou nezápornýmy
+Program se skládá z posloupnosti instrukcí, které vykonává od začátku do konce. Výpočet končí, pokud program narazí na
+instrukci `halt` nebo dojde na konec. Program pracuje s celými čísly a nekonečnou páskou buněk, indexovanou nezápornými
 čísly, do které si může čísla ukládat. K buňce se přistoupí jako `[Int]`, kde `Int` je její adresa. Je možná i nepřímá
 adresace do nekonečné hloubky `[[Int]]`. Dále je k dispozici 26 pomocných buněk indexovaných velkými písmeny `A-Z`.
 ukládat.
@@ -60,7 +60,7 @@ Vytiskne hodnotu výrazu `Expr` na `stdout`.
 If Cond do Instruction
 ```
 Zkontroluje podmínku `Cond` a pokud uspěje provede příkaz `Instruction`. Možné podmínky jsou porovnávání výrazů
-operátory `==, !=, <, <=, >, >=` a porovnávání booleovských hodnot pomocí pomocí `AND, OR`. Příklady If statementů:
+operátory `==, !=, <, <=, >, >=` a porovnávání boolovských hodnot pomocí pomocí `AND, OR`. Příklady If statementů:
 
 -------------------------------------------------------------------------------------
 
@@ -91,7 +91,7 @@ Goto -> here
 
 -------------------------------------------------------------------------------------
 
-Kód rozeznámá velká/malá písmena, ale nekouká na mezery. 
+Kód rozlišuje velká/malá písmena, ale nekouká na mezery. 
 Překladač ignoruje cokoliv za `#` až do konce řádky.
 
 Příklady jednoduchých programů jsou ve složce `examples`.
