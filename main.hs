@@ -4,6 +4,7 @@ import Data.Char
 import System.IO
 import System.Environment
 import System.Directory
+import System.Exit
 
 
 ----------------------------------------------------------------------------------------------------------
@@ -450,14 +451,22 @@ compile = compileProgram . parse
 ----------------------------------  Main
 ----------------------------------------------------------------------------------------------------------
 
+
 when :: Monad m => Bool -> m () -> m ()
 when cond action = if cond then action else return ()
 
 unless :: Monad m => Bool -> m () -> m ()
 unless = when . not
 
+
+handleArgs :: [String] -> IO()
+handleArgs [] = die "No input file.\nRun with --help for guide."
+handleArgs xs
+    | (elem "--help" xs) = do putStrLn "TODO"
+    | otherwise          = compileFile xs
+
+
 compileFile :: [String] -> IO()
-compileFile []          = do putStrLn "no input file"
 compileFile [from]      = compileFile' from (from ++ ".c")
 compileFile (from:to:_) = compileFile' from to
 
@@ -466,15 +475,14 @@ compileFile' :: String -> String -> IO()
 compileFile' from to = do
         err1 <- doesFileExist from
         unless err1 $ do
-            putStrLn ("File " <> from <> " does not exist.")
-            return ()
-        when err1 $ do
-            content <- readFile from
-            compileFile'' from to (compile content)
+            die ("File " <> from <> " does not exist.")
+        putStrLn "here"
+        content <- readFile from
+        compileFile'' from to (compile content)
 
 compileFile'' :: String -> String -> (Either ParseError String) -> IO()
 compileFile'' from to (Left err) = do
-    putStrLn ( show err )
+    die ( show err )
 compileFile'' from to (Right str) = do 
     h <- openFile to WriteMode
     hPutStrLn h str
@@ -482,9 +490,9 @@ compileFile'' from to (Right str) = do
     
     
 
-
 main :: IO ()
 main = do 
     args <- getArgs
-    compileFile args
+    handleArgs args
+
 
