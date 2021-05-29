@@ -2,6 +2,8 @@
 
 import Data.Char
 import System.IO
+import System.Environment
+import System.Directory
 
 
 ----------------------------------------------------------------------------------------------------------
@@ -32,7 +34,8 @@ data Instruction
     | Point String Instruction -- String: Instruction
     | Goto String              -- Goto -> String
     | Input Cell               -- Input: Cell
-    | Output Cell              -- Output: Cell
+    | Output Expr              -- Output: Cell
+    | Halt                     -- Halt
   deriving (Eq, Show)
 
 data Program = Main [Instruction]
@@ -330,8 +333,13 @@ parseOutput :: Parser Instruction
 parseOutput = do 
     _    <- string "Output"
     _    <- string ":"
-    cell <- parseCell
-    return (Output cell)
+    expr <- parseExpr
+    return (Output expr)
+
+parseHalt :: Parser Instruction
+parseHalt = do
+    _ <- string "Halt"
+    return Halt
 
 parseInstruction :: Parser Instruction 
 parseInstruction = choice "Instruction"
@@ -341,6 +349,7 @@ parseInstruction = choice "Instruction"
     , try parseInput
     , try parseOutput
     , try parsePoint
+    , try parseHalt
     ]
 
 
@@ -351,8 +360,6 @@ parseInstruction = choice "Instruction"
 
 parseProgram :: Parser Program 
 parseProgram = Main <$> (sepBy parseInstruction (char '\n'))
-
--- parseTest = run (sepBy (between (symbol "a") (symbol "a") (char 'b')) (char '\n'))
 
 
 ----------------------------------------------------------------------------------------------------------
@@ -420,19 +427,17 @@ compileInstr (Comment  s) = "// " ++ s ++ "\n"
 compileInstr (Point  s i) = s ++ ":  " ++ (compileInstr i)
 compileInstr (Goto     s) = "goto " ++ s ++ ";\n"
 compileInstr (Input    c) = "scanf(\"%i\",&"  ++ (compileCell c) ++ ");\n"
-compileInstr (Output   c) = "printf(\"%i \"," ++ (compileCell c) ++ ");\n"
+compileInstr (Output   e) = "printf(\"%i \"," ++ (compileExpr e) ++ ");\n"
+compileInstr Halt         = "{free(kov_arr); free(arr); return 0;\n"
 
 
 compileProgram :: Either ParseError Program -> Either ParseError String
+compileProgram (Left err) = (Left err)
 compileProgram (Right (Main x)) = Right (beg ++ (foldr f "" x) ++ end)
   where
     f = ((++) . (("    " ++) . compileInstr))
     beg = includes ++ memorymanage ++ start
-compileProgram (Left err) = (Left err)
 
-printPrg :: Either ParseError String -> String 
-printPrg (Left  err) = show err
-printPrg (Right prg) = prg
 
 parse :: String -> Either ParseError Program
 parse = (run parseProgram) . prepareForParsing
@@ -440,12 +445,16 @@ parse = (run parseProgram) . prepareForParsing
 compile :: String -> Either ParseError String
 compile = compileProgram . parse
 
-test s = printPrg (compile s)
-
 
 ----------------------------------------------------------------------------------------------------------
 ----------------------------------  Main
 ----------------------------------------------------------------------------------------------------------
+
+when :: Monad m => Bool -> m () -> m ()
+when cond action = if cond then action else return ()
+
+unless :: Monad m => Bool -> m () -> m ()
+unless = when . not
 
 compileFile :: [String] -> IO()
 compileFile []          = do putStrLn "no input file"
@@ -454,23 +463,28 @@ compileFile (from:to:_) = compileFile' from to
 
 
 compileFile' :: String -> String -> IO()
-compileFile' from to = do 
-    content <- readFile from
+compileFile' from to = do
+        err1 <- doesFileExist from
+        unless err1 $ do
+            putStrLn ("File " <> from <> " does not exist.")
+            return ()
+        when err1 $ do
+            content <- readFile from
+            compileFile'' from to (compile content)
+
+compileFile'' :: String -> String -> (Either ParseError String) -> IO()
+compileFile'' from to (Left err) = do
+    putStrLn ( show err )
+compileFile'' from to (Right str) = do 
     h <- openFile to WriteMode
-    hPutStrLn h ((printPrg . compile) content)
+    hPutStrLn h str
     hClose h
+    
+    
+
 
 main :: IO ()
 main = do 
---    args <- getArgs
---    compileFile args  
-    compileFile ["test1", "done1.c"]
-        
-
-
-
-
-
-
-
+    args <- getArgs
+    compileFile args
 

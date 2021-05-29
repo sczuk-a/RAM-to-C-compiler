@@ -70,6 +70,11 @@ Goto -> Point
 ```
 Skočí na řádek s nastaveným místem `Point`.
 
+```
+Halt
+```
+Ukončí běh programu.
+
 Příklady použití:
 
 ```
