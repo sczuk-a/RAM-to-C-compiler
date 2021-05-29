@@ -31,7 +31,7 @@ Paměťová složitost je závislá na nejvyšší použité adrese buňky, ne n
 ```
 Cell <- Expression
 ```
-Přiřadí do buňky `Cell` hodnotu výrazu `Expression`
+Přiřadí do buňky `Cell` hodnotu výrazu `Expression`. Výrazy se skládají z buněk, čísel, operátorů `+ - * /` a závorek.
 
 
 -------------------------------------------------------------------------------------
