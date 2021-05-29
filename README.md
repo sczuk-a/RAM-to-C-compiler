@@ -1,10 +1,10 @@
 # simple RAM to C compiler
 
 
-#Použití
+# Použití
 
-Program bere 2 argumenty. První udává adresu souboru s kódem. Druhý Udává adresu, kam se má kód přeložit. Pokud je
-program zavolán bez druhého argumentu, použije se stejná adresa jako u prvního. 
+Program bere 2 argumenty. První udává adresu souboru s kódem. Druhý udává adresu, kam se má kód přeložit. Pokud je
+program zavolán bez druhého argumentu, použije se stejná adresa jako u prvního, pouze se přidá koncovka `.c`. 
 
 Také je možné pustit s `--help` pro zobrazení informací.
 
@@ -24,7 +24,7 @@ ukládat.
 Paměťová složitost je závislá na nejvyšší použité adrese buňky, ne na počtu použitých buňek !!
 
 
-
+# Instrukce
 
 
 #### Přiřazení
@@ -34,7 +34,6 @@ Cell <- Expression
 ```
 Přiřadí do buňky `Cell` hodnotu výrazu `Expression`
 
-```
 
 -------------------------------------------------------------------------------------
 
