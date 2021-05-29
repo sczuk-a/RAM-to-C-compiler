@@ -156,8 +156,8 @@ char :: Char -> Parser Char
 char c = satisfy [c] (== c)
 
 
-isNot :: Char -> Parser Char
-isNot c = satisfy ("anything but" <> [c]) (/= c)
+isNot :: [Char] -> Parser Char
+isNot xs = satisfy ("anything but" <> xs) (\c -> (not  (elem c xs)))
 
 
 digit :: Parser Char
@@ -313,7 +313,7 @@ parseIf = do
 
 parsePoint :: Parser Instruction 
 parsePoint = do 
-    str    <- many (isNot ':')
+    str    <- many (isNot ":\n")
     _      <- string ":" 
     instr  <- parseInstruction
     return (Point str instr)
@@ -321,7 +321,7 @@ parsePoint = do
 parseGoto :: Parser Instruction 
 parseGoto = do 
     _   <- string "Goto->"
-    str <- many (isNot '\n')
+    str <- many (isNot "\n")
     return (Goto str)
 
 parseInput :: Parser Instruction 
@@ -350,8 +350,8 @@ parseInstruction = choice "Instruction"
     , try parseGoto
     , try parseInput
     , try parseOutput
-    , try parsePoint
     , try parseHalt
+    , try parsePoint
     ]
 
 

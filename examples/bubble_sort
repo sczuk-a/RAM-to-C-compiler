@@ -1,0 +1,28 @@
+# takes n, and n numbers on input and sorts them
+
+# handling input
+Input: [0]
+I <- 1
+in: Input: [I]
+I <- I + 1
+If I <= [0] do Goto -> in
+
+
+I <- 0
+out: I <- I+1
+     J <- I
+     If I > [0] do Goto -> end
+     ine: J <- J+1
+          If J > [0] do  Goto -> out
+          If [I] < [J] do Goto -> ine
+              T   <- [J]
+              [J] <- [I]
+              [I] <- T
+     Goto -> ine
+
+
+# handling output
+end: I <- 1
+output: Output: [I]
+I <- I + 1
+If I <= [0] do Goto -> output
