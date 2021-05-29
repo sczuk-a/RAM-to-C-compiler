@@ -467,6 +467,8 @@ compile = compileProgram . parse
 ----------------------------------  Main
 ----------------------------------------------------------------------------------------------------------
 
+help :: String
+help = "simple RAM to C compiler\n\n1st argument indicates input file path.\n2nd argument indicates output file path, when not present, program will use same path as input but with ending \".c\"."
 
 when :: Monad m => Bool -> m () -> m ()
 when cond action = if cond then action else return ()
@@ -478,7 +480,7 @@ unless = when . not
 handleArgs :: [String] -> IO()
 handleArgs [] = die "No input file.\nRun with --help for guide."
 handleArgs xs
-    | (elem "--help" xs) = do putStrLn "TODO"
+    | (elem "--help" xs) = do putStrLn help
     | otherwise          = compileFile xs
 
 
