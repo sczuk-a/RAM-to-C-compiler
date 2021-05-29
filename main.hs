@@ -445,7 +445,7 @@ compileInstr (Point  s i) = s <> ":  " <> (compileInstr i)
 compileInstr (Goto     s) = "goto " <> s <> ";\n"
 compileInstr (Input    c) = "scanf(\"%i\",&"  <> (compileCell c) <> ");\n"
 compileInstr (Output   e) = "printf(\"%i \"," <> (compileExpr e) <> ");\n"
-compileInstr Halt         = "{free(kov_arr); free(arr); return 0;\n"
+compileInstr Halt         = "{free(kov_arr); free(arr); return 0;}\n"
 
 
 compileProgram :: Either ParseError Program -> Either ParseError String
