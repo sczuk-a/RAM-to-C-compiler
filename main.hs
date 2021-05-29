@@ -157,7 +157,7 @@ char c = satisfy [c] (== c)
 
 
 isNot :: Char -> Parser Char
-isNot c = satisfy ("anything but" ++ [c]) (/= c)
+isNot c = satisfy ("anything but" <> [c]) (/= c)
 
 
 digit :: Parser Char
@@ -420,40 +420,40 @@ fromASCII c = (ord c) - 65
 
 
 compileCell :: Cell -> String
-compileCell (Konv    c) = "kov_arr[" ++ (show (fromASCII c)) ++ "]"
-compileCell (Dir     n) = "*((int*)(get(" ++ (show n) ++ ", &arr, &max) + arr))"
-compileCell (NonDir  c) = "*((int*)(get(" ++ (compileCell c) ++ ", &arr, &max) + arr))"
+compileCell (Konv    c) = "kov_arr[" <> (show (fromASCII c)) <> "]"
+compileCell (Dir     n) = "*((int*)(get(" <> (show n) <> ", &arr, &max) + arr))"
+compileCell (NonDir  c) = "*((int*)(get(" <> (compileCell c) <> ", &arr, &max) + arr))"
 
 
 compileExpr :: Expr -> String
 compileExpr (Lit int)   = show int
 compileExpr (Var cell)  = compileCell cell
-compileExpr (BinOp op e1 e2) = "(" ++ (compileExpr e1) ++ op ++ (compileExpr e2) ++ ")"
+compileExpr (BinOp op e1 e2) = "(" <> (compileExpr e1) <> op <> (compileExpr e2) <> ")"
 
 
 compileCond :: Cond -> String
-compileCond (CmpOp     op e1 e2) = (compileExpr e1) ++ op ++ (compileExpr e2)
+compileCond (CmpOp     op e1 e2) = (compileExpr e1) <> op <> (compileExpr e2)
 compileCond (LogicalOp op c1 c2)
-    | op =="AND" = "(" ++ (compileCond c1) ++ "&&" ++ (compileCond c2) ++ ")"
-    | otherwise  = "(" ++ (compileCond c1) ++ "||" ++ (compileCond c2) ++ ")"
+    | op =="AND" = "(" <> (compileCond c1) <> "&&" <> (compileCond c2) <> ")"
+    | otherwise  = "(" <> (compileCond c1) <> "||" <> (compileCond c2) <> ")"
 
 
 compileInstr :: Instruction -> String
-compileInstr (Assign c e) = (compileCell c) ++ "=" ++ (compileExpr e) ++ ";\n"
-compileInstr (If     c i) = "if(" ++ (compileCond c) ++ ")" ++ (compileInstr i)
-compileInstr (Point  s i) = s ++ ":  " ++ (compileInstr i)
-compileInstr (Goto     s) = "goto " ++ s ++ ";\n"
-compileInstr (Input    c) = "scanf(\"%i\",&"  ++ (compileCell c) ++ ");\n"
-compileInstr (Output   e) = "printf(\"%i \"," ++ (compileExpr e) ++ ");\n"
+compileInstr (Assign c e) = (compileCell c) <> "=" <> (compileExpr e) <> ";\n"
+compileInstr (If     c i) = "if(" <> (compileCond c) <> ")" <> (compileInstr i)
+compileInstr (Point  s i) = s <> ":  " <> (compileInstr i)
+compileInstr (Goto     s) = "goto " <> s <> ";\n"
+compileInstr (Input    c) = "scanf(\"%i\",&"  <> (compileCell c) <> ");\n"
+compileInstr (Output   e) = "printf(\"%i \"," <> (compileExpr e) <> ");\n"
 compileInstr Halt         = "{free(kov_arr); free(arr); return 0;\n"
 
 
 compileProgram :: Either ParseError Program -> Either ParseError String
 compileProgram (Left err) = (Left err)
-compileProgram (Right (Main x)) = Right (beg ++ (foldr f "" x) ++ end)
+compileProgram (Right (Main x)) = Right (beg <> (foldr f "" x) <> end)
   where
-    f = ((++) . (("    " ++) . compileInstr))
-    beg = includes ++ memorymanage ++ start
+    f = ((<>) . (("    " <>) . compileInstr))
+    beg = includes <> memorymanage <> start
 
 
 parse :: String -> Either ParseError Program
@@ -484,7 +484,7 @@ handleArgs xs
 
 compileFile :: [String] -> IO()
 compileFile []          = return ()
-compileFile [from]      = compileFile' from (from ++ ".c")
+compileFile [from]      = compileFile' from (from <> ".c")
 compileFile (from:to:_) = compileFile' from to
 
 
